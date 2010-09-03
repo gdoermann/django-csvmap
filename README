@@ -1,0 +1,13 @@
+A CSV Mapping object for easy csv import and export into and out of django.  You specify formats and the models to import 
+into and it will automatically handle the imports, exports, errors, etc.  You can directly pump information into models
+or use forms to validate and save the data.
+
+The idea is as follows:
+Form: Create a django form with the labels as the csv headers.
+MapOption: Pass in the model and the form to create an option for csv parsing
+MapForm: A form that actually uploads the csv file, checks if the csv file meets a MapOption, and then validates the csv against the Form
+
+You get a Formset back from the MapForm that you can then use in your app or spit back to the user for extra editing or fixing of invalid fields.
+You can pass in a required set of fields that must be in the csv header, or it will parse it from the Form.fields that are required.
+
+This is a working product, but still may have a few bugs.  It is well tested on my app, but I haven't created examples and tests to go with them yet.
