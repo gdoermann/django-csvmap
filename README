@@ -4,8 +4,8 @@ or use forms to validate and save the data.
 
 The idea is as follows:
 Form: Create a django form with the labels as the csv headers.
-MapOption: Pass in the model and the form to create an option for csv parsing
-MapForm: A form that actually uploads the csv file, checks if the csv file meets a MapOption, and then validates the csv against the Form
+MapOption: Pass in the model and the form to create an option for csv parsing.
+MapForm: Takes in a set of map options it will compare the csv against.  This is the form that actually uploads the csv file, checks if the csv file meets a MapOption, and then validates the csv against the Form
 
 You get a Formset back from the MapForm that you can then use in your app or spit back to the user for extra editing or fixing of invalid fields.
 You can pass in a required set of fields that must be in the csv header, or it will parse it from the Form.fields that are required.
