@@ -1,7 +1,12 @@
+from csvmap.mapping import decode_csv
 from django import forms
+from django.core.files.uploadedfile import SimpleUploadedFile,\
+    InMemoryUploadedFile
 from django.http import HttpResponse
+from tempfile import TemporaryFile
 
 class MapForm(forms.Form):
+    encodings = {}
     MAP_NOT_FOUND = 'The file could not be imported. Please check that the file is in a valid format.'
     f = forms.FileField(label='Choose file')
     
@@ -11,6 +16,28 @@ class MapForm(forms.Form):
         """
         self.maps = maps
         super(MapForm, self).__init__(*args, **kwargs)
+        self.decode()
+    
+    def decode(self):
+        try:
+            import chardet
+        except:
+            return
+        
+        files = self.files
+        if files: 
+            for key, f in files.items():
+                f_data = f.readline()
+                encoding = chardet.detect(f_data)['encoding']
+                f.seek(0)
+                self.encodings[key] = encoding
+            
+            # Actually decode files
+            for key, encoding in self.encodings.items():
+                if encoding.lower() not in ('utf-8', 'ascii'):
+                    new_file = decode_csv(self.files[key], encoding)
+                    f = self.files[key]
+                    self.files[key].file = new_file
     
     _map = None
     def full_clean(self):
@@ -43,9 +70,11 @@ class MapForm(forms.Form):
         if formset.is_valid() and not bool(args) and not bool(kwargs):
             return formset.save()
         
+        saves = {}
         for form in formset.forms:
             if form.is_valid():
-                form.save(*args, **kwargs)
+                saves[form] = form.save(*args, **kwargs)
+        return saves
     
     @property
     def invalid_forms(self):
