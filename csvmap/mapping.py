@@ -1,15 +1,50 @@
+from StringIO import StringIO
 from django import forms
 from django.core.files.uploadedfile import UploadedFile
 from django.forms.models import modelformset_factory
 from django.utils.datastructures import SortedDict
+from django.utils.encoding import smart_unicode
+from vobject.base import ParseError
+import chardet
+import codecs
 import csv
 import logging
+import traceback
 import unicodedata
-from django.utils.encoding import smart_unicode
-from StringIO import StringIO
-from vobject.base import ParseError
 
 log = logging.getLogger('csvmap.mapping')
+
+class UnicodeDictReader(csv.DictReader):
+    def __init__(self, f, fieldnames=None, restkey=None, restval=None,
+                 dialect="excel", *args, **kwds):
+        csv.DictReader.__init__(self, f, fieldnames=fieldnames,
+                restkey = restkey, restval = restval, dialect=dialect,
+                *args, **kwds)
+        pos = f.tell()
+        encoding = chardet.detect(f.readline())['encoding']
+        f.seek(pos)
+        
+        f = codecs.EncodedFile(f, 'utf-8', encoding, errors = 'ignore')
+#        self.reader = csv.reader(utf_8_encoder(f), dialect, *args, **kwds)
+        self.reader = csv.reader(f, dialect, *args, **kwds)
+#    
+#    def next(self):
+#        d = csv.DictReader.next(self)
+#        print d
+#        return d
+
+def unicode_csv_reader(unicode_csv_data, dialect=csv.excel, **kwargs):
+    # csv.py doesn't do Unicode; encode temporarily as UTF-8:
+    csv_reader = csv.DictReader(utf_8_encoder(unicode_csv_data),
+                            dialect=dialect, **kwargs)
+    for row in csv_reader:
+        # decode UTF-8 back to Unicode, cell by cell:
+        yield [unicode(cell, 'utf-8') for cell in row]
+
+def utf_8_encoder(unicode_csv_data):
+    for line in unicode_csv_data:
+        yield smart_unicode(line, encoding = 'utf-8',errors = 'ignore')
+#        yield line.encode('utf-8', 'ignore')
 
 class ValueParser(object):
     def __init__(self, label, parser):
@@ -69,7 +104,7 @@ class FileMapper(object):
         if self._reader is None:
             if not self.f:
                 raise ValueError('You must first set file to read.')
-            self._reader = csv.DictReader(self.f, **self._kwargs)
+            self._reader = UnicodeDictReader(self.f, **self._kwargs)
         return self._reader
     def _set_reader(self, reader):
         self._reader = reader
@@ -101,8 +136,7 @@ class FileMapper(object):
                     if d.has_key(str(header)):
                         parser = 'parse_%s' %(name)
                         if hasattr(form, parser):
-                            m = getattr(form, parser)
-                            data[key] = m(d)
+                            data[key] = getattr(form, parser)(d)
                         else:
                             data[key] = d[header]
                     else:
@@ -180,11 +214,14 @@ class MapOption(object):
         if self.map_type == self.XML:
             return self._can_map_xml(f)
         else:
-            return self._can_map(f)
+            can_map = self._can_map(f)
+            return can_map
     
     def _can_map_fields(self, fields):
+        s_fields = [str(field) for field in fields]
+        s_fields.sort()
         for field in self.required:
-            if str(field) not in fields:
+            if str(field) not in s_fields:
                 return False
         return True
     
@@ -206,6 +243,7 @@ class MapOption(object):
             fields = [str(field) for field in map.fieldnames]
             can_map = self._can_map_fields(fields)
         except (csv.Error, UnicodeError, ParseError):
+            log.log(3, traceback.format_exc())
             log.debug('File encoding does not match')
             can_map = False
         finally:
@@ -232,7 +270,8 @@ class MapOption(object):
         assert(self.can_map(csv_file))
         map = self.mapper(csv_file, **kwargs)
         cls = self.formset_class(map = map)
-        return cls(map.data)
+        frm = cls(map.data)
+        return frm
     
     class Meta:
         required = None

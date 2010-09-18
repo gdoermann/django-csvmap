@@ -16,29 +16,29 @@ class MapForm(forms.Form):
         """
         self.maps = maps
         super(MapForm, self).__init__(*args, **kwargs)
-        self.decode()
-    
-    def decode(self):
-        try:
-            import chardet
-        except:
-            return
-        
-        files = self.files
-        if files: 
-            for key, f in files.items():
-                f_data = f.readline()
-                encoding = chardet.detect(f_data)['encoding']
-                f.seek(0)
-                self.encodings[key] = encoding
-            
-            # Actually decode files
-            for key, encoding in self.encodings.items():
-                if encoding.lower() not in ('utf-8', 'ascii'):
-                    new_file = decode_csv(self.files[key], encoding)
-                    f = self.files[key]
-                    self.files[key].file = new_file
-    
+#        self.decode()
+#    
+#    def decode(self):
+#        try:
+#            import chardet
+#        except:
+#            return
+#        
+#        files = self.files
+#        if files: 
+#            for key, f in files.items():
+#                f_data = f.readline()
+#                encoding = chardet.detect(f_data)['encoding']
+#                f.seek(0)
+#                self.encodings[key] = encoding
+#            
+#            # Actually decode files
+#            for key, encoding in self.encodings.items():
+#                if encoding.lower() not in ('utf-8', 'ascii'):
+#                    new_file = decode_csv(self.files[key], encoding)
+#                    f = self.files[key]
+#                    self.files[key].file = new_file
+#    
     _map = None
     def full_clean(self):
         super(MapForm, self).full_clean()
@@ -47,7 +47,9 @@ class MapForm(forms.Form):
         
         # Valid if fields are valid AND the file uploaded matches a mapping protocol 
         for map in self.maps:
-            if map.can_map(self.files['f']):
+            f = self.files['f']
+            can_map = map.can_map(f)
+            if can_map:
                 self._map = map
                 return
         # No map protocol could be used to import the data
