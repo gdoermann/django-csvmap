@@ -25,13 +25,7 @@ class UnicodeDictReader(csv.DictReader):
         f.seek(pos)
         
         f = codecs.EncodedFile(f, 'utf-8', encoding, errors = 'ignore')
-#        self.reader = csv.reader(utf_8_encoder(f), dialect, *args, **kwds)
         self.reader = csv.reader(f, dialect, *args, **kwds)
-#    
-#    def next(self):
-#        d = csv.DictReader.next(self)
-#        print d
-#        return d
 
 def unicode_csv_reader(unicode_csv_data, dialect=csv.excel, **kwargs):
     # csv.py doesn't do Unicode; encode temporarily as UTF-8:
