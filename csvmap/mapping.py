@@ -156,7 +156,7 @@ class FileMapper(object):
                 data = form.cleaned_data
             line = []
             for name in self._map.keys():
-                line.append(data[name])
+                line.append(data.get(name, ''))
             lines.append(line)
         return lines
     

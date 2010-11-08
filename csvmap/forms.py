@@ -1,14 +1,16 @@
-from csvmap.mapping import decode_csv
 from django import forms
-from django.core.files.uploadedfile import SimpleUploadedFile,\
-    InMemoryUploadedFile
 from django.http import HttpResponse
-from tempfile import TemporaryFile
+from django.conf import settings
+from django.forms.util import ValidationError
+from django.utils.translation import ugettext_lazy as _
 
 class MapForm(forms.Form):
+    default_error_messages = {
+        'max_size': _(u"File too large for importing. Max size: %s KB" %(getattr(settings, 'MAX_IMPORT_SIZE', 100000)/1000)),
+    }
     encodings = {}
     MAP_NOT_FOUND = 'The file could not be imported. Please check that the file is in a valid format.'
-    f = forms.FileField(label='Choose file')
+    f = forms.FileField(label='Choose file', help_text = "Max size: %s KB" %(getattr(settings, 'MAX_IMPORT_SIZE', 100000)/1000))
     
     def __init__(self, maps, *args, **kwargs):
         """ The base form for mapping csv files
@@ -16,29 +18,7 @@ class MapForm(forms.Form):
         """
         self.maps = maps
         super(MapForm, self).__init__(*args, **kwargs)
-#        self.decode()
-#    
-#    def decode(self):
-#        try:
-#            import chardet
-#        except:
-#            return
-#        
-#        files = self.files
-#        if files: 
-#            for key, f in files.items():
-#                f_data = f.readline()
-#                encoding = chardet.detect(f_data)['encoding']
-#                f.seek(0)
-#                self.encodings[key] = encoding
-#            
-#            # Actually decode files
-#            for key, encoding in self.encodings.items():
-#                if encoding.lower() not in ('utf-8', 'ascii'):
-#                    new_file = decode_csv(self.files[key], encoding)
-#                    f = self.files[key]
-#                    self.files[key].file = new_file
-#    
+
     _map = None
     def full_clean(self):
         super(MapForm, self).full_clean()
@@ -56,6 +36,12 @@ class MapForm(forms.Form):
         errors = self._errors.pop(forms.forms.NON_FIELD_ERRORS, self.error_class())
         errors.append(self.MAP_NOT_FOUND)
         self._errors[forms.forms.NON_FIELD_ERRORS] = errors
+    
+    def clean(self):
+        f = self.files['f']
+        if f.size > getattr(settings, 'MAX_IMPORT_SIZE', 100000): #100K is default
+            raise ValidationError(self.default_error_messages['max_size'])
+        return self.cleaned_data
     
     _formset = None
     @property
